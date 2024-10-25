@@ -6,22 +6,23 @@ import pandas as pd
 from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
 
+import dataset
+from dataset import Australian
 from rerx import MLP, J48graft, ReRx
 
 
 def get_X_y(data, feature_cols, label_col):
-    X, y = data[feature_cols], data[label_col].values.squeeze()
+
+    X, y = data[feature_cols], data[label_col].cat.codes.values.squeeze()
     return X, y
 
 
 def main():
     os.makedirs("outputs", exist_ok=True)
 
-    data = load_breast_cancer()
-    feature_cols, label_col = data.feature_names, "class"
-    X, y = data.data, data.target
-    data = pd.DataFrame(X, columns=data.feature_names)
-    data["class"] = y
+    dataframe = Australian()
+    feature_cols, label_col = dataframe.feature_columns, dataframe.target_column
+    data = dataframe.data
 
     train_data, test_data = train_test_split(data, test_size=0.2)
     train_data, val_data = train_test_split(train_data, test_size=0.1)
