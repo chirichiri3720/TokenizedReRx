@@ -6,6 +6,10 @@ import openml
 logger = logging.getLogger(__name__)
 
 
+exceptions_binary = [45062]
+exceptions_multiclass = [44135]
+
+
 def get_task_and_dim_out(data_id, df, columns, cate_indicator, target_col):
     target_idx = columns.index(target_col)
 
@@ -56,7 +60,6 @@ def print_dataset_details(dataset: openml.datasets.OpenMLDataset):
     print(f"dim_out: {dim_out}")
     print(df[target_col].value_counts())
     exit()
-
 
 
 class OpenMLDataFrame(object):
