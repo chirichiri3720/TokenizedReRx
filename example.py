@@ -27,7 +27,7 @@ def main():
     train_data, test_data = train_test_split(data, test_size=0.2)
     train_data, val_data = train_test_split(train_data, test_size=0.1)
 
-    mlp = MLP(len(feature_cols), 2, h_dim=10)
+    mlp = MLP(h_dim=10)
     tree = J48graft(out_dir="outputs/")
     model = ReRx(base_model=mlp, tree=tree, output_dim=2, is_eval=True)
 
