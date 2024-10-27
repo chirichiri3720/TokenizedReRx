@@ -119,7 +119,7 @@ class CategoricalFeatureTokenizer(BaseTokenizer):
         assert d_token > 0, 'd_token must be positive'
         initialization_ = _TokenInitialization.from_str(initialization)
 
-        category_offsets = tf.constant(np.cumsum([0] + cardinalities[:-1]))
+        category_offsets = tf.constant(np.cumsum([0] + cardinalities[:-1]),dtype=tf.int32)
 
         self.category_offsets = category_offsets        
         self.embeddings = Embedding(input_dim=sum(cardinalities),output_dim=d_token,embeddings_initializer=initialization_.apply(shape=None, d=d_token))
@@ -145,11 +145,8 @@ class CategoricalFeatureTokenizer(BaseTokenizer):
         return self.embeddings.embedding_dim
     
     def call(self, inputs):
-        # 入力にオフセットを加算
         x = inputs + tf.expand_dims(self.category_offsets, axis=0)
-        # 埋め込みベクトルの取得
         x = self.embeddings(x)
-        # バイアスの追加
         if self.bias is not None:
             x += tf.expand_dims(self.bias, axis=0)
         return x

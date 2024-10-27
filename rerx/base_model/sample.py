@@ -1,12 +1,11 @@
 import numpy as np
 import tensorflow as tf
-
 from tokenizer import CategoricalFeatureTokenizer
 
 # テスト用のデータ
-cardinalities = [3, 10]  # カテゴリカル特徴の種類数
+cardinalities = [3,2]  # カテゴリカル特徴の種類数
 d_token = 3  # 各トークンの次元数
-bias = True  # バイアスを使用
+bias = True  # バイアスを使用する
 initialization = 'uniform'  # パラメータの初期化方法
 
 # トークナイザーのインスタンスを作成
@@ -15,12 +14,13 @@ tokenizer = CategoricalFeatureTokenizer(cardinalities, d_token, bias, initializa
 # テスト用の入力データを作成
 # 各特徴量が取る値はその特徴のカテゴリ数未満でなければなりません
 x_test = tf.constant([
-    [0, 5],
-    [1, 7],
-    [0, 2],
-    [2, 4]
+    [0, 0],
+    [0, 1],
+    [1, 0],
+    [1, 1]
 ])
 
+print(x_test + tokenizer.category_offsets[None])
 # トークナイザーを適用して出力トークンを取得
 tokens = tokenizer(x_test)
 
@@ -36,12 +36,16 @@ assert tokens.shape == expected_shape, "トークナイザーの出力形状が�
 
 # 出力トークンの一部を表示
 print("出力トークンの一部:")
-print(tokens.numpy()[:2])  # 最初の2つのトークンを表示
+print(tokens.numpy())  # 最初の2つのトークンを表示
 
 # 埋め込み層の重みの形状を確認
 embedding_weights = tokenizer.embeddings.get_weights()[0]
 print("埋め込み層の重みの形状:", embedding_weights.shape)
+print(embedding_weights)
 
 # バイアスベクトルがある場合は形状を確認
 if bias:
     print("バイアスベクトルの形状:", tokenizer.bias.shape)
+    print(tokenizer.bias.numpy())
+
+print("テストが正常に完了しました！")
