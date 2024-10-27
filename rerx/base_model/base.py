@@ -91,7 +91,7 @@ class MLP(BaseModel):
         eval_batch_size=4096,
         optimizer="adam",
         pruning_metric="acc",
-        scaler=None,
+        scaler="minmax",
         onehot=True,
         onehoter: OneHotEncoder = None,
         early_stop=False,
