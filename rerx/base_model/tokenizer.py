@@ -15,15 +15,14 @@ from tensorflow.keras.initializers import RandomUniform, RandomNormal
 
 
 class BaseTokenizer(Layer):
-    # def __init__(
-    #     self,
-    #     cardinalities: List[int],
-    #     d_token: int,
-    #     bias: bool,
-    #     initialization: str,
-    # ) -> None:
-    #     super.__init__()
-
+    def __init__(
+        self,
+        d_token: int,
+        bias: bool,
+        initialization: str,
+        **kwargs
+    ) -> None:
+        super().__init__()
 
     @property
     def n_tokens(self) -> int:
@@ -36,7 +35,7 @@ class BaseTokenizer(Layer):
         return self.weight.shape[1]
     
     def call(self, inputs):
-       ...
+       NotImplementedError()
 
 class _TokenInitialization(enum.Enum):
     UNIFORM = 'uniform'
@@ -92,8 +91,8 @@ class CategoricalFeatureTokenizer(BaseTokenizer):
         self,
         cardinalities: List[int],
         d_token: int,
-        bias: bool,
-        initialization: str,
+        bias: bool = True,
+        initialization: str = 'uniform'
     ) -> None:
         """
         Args:
@@ -114,7 +113,7 @@ class CategoricalFeatureTokenizer(BaseTokenizer):
         References:
             * [gorishniy2021revisiting] Yury Gorishniy, Ivan Rubachev, Valentin Khrulkov, Artem Babenko, "Revisiting Deep Learning Models for Tabular Data", 2021
         """
-        super().__init__()
+        super().__init__(d_token,bias,initialization)
         assert cardinalities, 'cardinalities must be non-empty'
         assert d_token > 0, 'd_token must be positive'
         initialization_ = _TokenInitialization.from_str(initialization)
@@ -134,15 +133,7 @@ class CategoricalFeatureTokenizer(BaseTokenizer):
         else:
             self.bias = None
      
-    @property
-    def n_tokens(self) -> int:
-        """The number of tokens."""
-        return len(self.category_offsets)
 
-    @property
-    def d_token(self) -> int:
-        """The size of one token."""
-        return self.embeddings.embedding_dim
     
     def call(self, inputs):
         x = inputs + tf.expand_dims(self.category_offsets, axis=0)

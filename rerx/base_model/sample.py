@@ -9,7 +9,7 @@ bias = True  # バイアスを使用する
 initialization = 'uniform'  # パラメータの初期化方法
 
 # トークナイザーのインスタンスを作成
-tokenizer = CategoricalFeatureTokenizer(cardinalities, d_token, bias, initialization)
+tokenizer = CategoricalFeatureTokenizer(cardinalities=cardinalities, d_token=d_token, bias=bias, initialization=initialization)
 
 # テスト用の入力データを作成
 # 各特徴量が取る値はその特徴のカテゴリ数未満でなければなりません
