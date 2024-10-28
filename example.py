@@ -16,7 +16,6 @@ def get_X_y(data, feature_cols, label_col):
     X, y = data[feature_cols], data[label_col].cat.codes.values.squeeze()
     return X, y
 
-
 def main():
     os.makedirs("outputs", exist_ok=True)
 
