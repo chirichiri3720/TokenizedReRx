@@ -133,11 +133,57 @@ class CategoricalFeatureTokenizer(BaseTokenizer):
         else:
             self.bias = None
      
-
-    
     def call(self, inputs):
-        x = inputs + tf.expand_dims(self.category_offsets, axis=0)
+        x = inputs
+        # x = inputs + tf.expand_dims(self.category_offsets, axis=0)
         x = self.embeddings(x)
         if self.bias is not None:
-            x += tf.expand_dims(self.bias, axis=0)
+            x += self.bias
+            # x += tf.expand_dims(self.bias, axis=0)
         return x
+
+
+class FeatureTokenizer(BaseTokenizer):
+    def __init__(
+        self,
+        n_num_features: int,
+        cat_cardinalities: List[int],
+        d_token: int,
+        initialization: str = 'uniform'
+    ) -> None:
+    
+        super().__init__(n_num_features, cat_cardinalities, d_token)
+        assert n_num_features >= 0, 'n_num_features must be non-negative'
+        assert (
+            n_num_features or cat_cardinalities
+        ), 'at least one of n_num_features or cat_cardinalities must be positive/non-empty'
+        self.initialization = 'uniform'
+        
+        self.cat_tokenizer = (
+            CategoricalFeatureTokenizer(
+                cat_cardinalities, d_token, True, self.initialization
+            )
+            if cat_cardinalities
+            else None
+        )
+        self.n_num_features = n_num_features
+
+
+    def call(self,inputs):
+        num_features = inputs[:, :self.n_num_features]  # 数値データを抽出
+        cat_features = inputs[:, self.n_num_features:]  # カテゴリカルデータを抽出
+
+        # カテゴリカルデータをトークナイズ
+        if self.cat_tokenizer is not None:
+            cat_tokens = self.cat_tokenizer(cat_features)
+        else:
+            cat_tokens = tf.zeros(tf.shape(cat_features) + (self.d_token,),dtype=tf.float32)
+
+        # 数値データをそのまま使用
+        # 数値データの次元をトークンと同じ次元に拡張
+        num_tokens = tf.expand_dims(num_features, axis=-1)
+        # num_tokens = tf.cast(num_features, dtype=tf.float32)
+    
+
+        tokens = tf.concat([num_tokens,cat_tokens],axis=1)
+        return tokens

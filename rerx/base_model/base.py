@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from keras.initializers import Constant
-from keras.layers import Dense, Input
+from keras.layers import Concatenate, Dense, Flatten,Input,Lambda
 from keras.models import Model
 from keras.optimizers import SGD, Adam, AdamW
 from sklearn.metrics import (
@@ -15,7 +15,9 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, OrdinalEncoder, StandardScaler
+
+from .tokenizer import CategoricalFeatureTokenizer
 
 from ..utils import Logger
 
@@ -144,9 +146,9 @@ class MLP(BaseModel):
         if output_bias is not None:
             output_bias = Constant(output_bias)
         inputs = Input(shape=(input_dim,))
-
+        print(inputs)
         x = Dense(units=self.h_dim, kernel_initializer="uniform", activation=self.act, name="hidden_layer")(inputs)
-
+        print(x.shape)
         outputs = Dense(
             units=len(self.unique_label),
             kernel_initializer="uniform",
@@ -229,7 +231,7 @@ class MLP(BaseModel):
 
     def fit(self, X: pd.DataFrame, y: np.ndarray, eval_set: Optional[Tuple[pd.DataFrame, np.ndarray]] = None) -> None:
         X = self.scaler_transform(X)
-
+      
         self.initialize(X.shape[1], y)
         y = self.change_target_shape(y)
 
@@ -303,13 +305,17 @@ class MLP(BaseModel):
         weight_i2h = list(map(abs, weight_i2h))
 
         weight_i2h_index = np.argsort(weight_i2h)
+        print(weight_i2h_index)
 
+        print(weights[0])
         for i in range(int(len(weight_i2h_index) * ratio)):
             change_zero = weight_i2h_index[i]
+            print({"num" : i },{ change_zero})
             a = change_zero // self.h_dim
             b = change_zero % self.h_dim
             weights[0][a, b] = 0
 
+        print(weights[0])
         self.set_weights(weights)
 
     def get_droped_columns(self, X: pd.DataFrame):
@@ -337,3 +343,164 @@ class MLP(BaseModel):
                     drop_columns.append(column)
 
         return drop_columns
+
+
+class TokenizedMLP(MLP):
+    def __init__(
+        self,
+        d_token = 1, 
+        bias = True,
+        initialization = 'uniform',
+        **kwargs,
+        ) -> None:
+        super().__init__(**kwargs)
+        self.d_token = d_token
+        self.bias = bias
+        self.initialization = initialization
+        self.cate_ordinaler = OrdinalEncoder()
+    
+    def make_model(self, input_cate_dim, input_num_dim, output_bias=None) -> Model:
+        if output_bias is not None:
+            output_bias = Constant(output_bias)
+
+        numeric_input = Input(shape=(input_num_dim,), dtype='float32', name="numeric_input")  
+        categorical_input = Input(shape=(input_cate_dim,), dtype='int32', name="categorical_input")
+
+        tf.print("Categorical input:", categorical_input)
+        tf.print("Cardinalities:", self.cardinalities)
+
+        cate = CategoricalFeatureTokenizer(
+            cardinalities=self.cardinalities,
+            d_token=self.d_token,
+            bias=self.bias,
+            initialization=self.initialization,
+            )(categorical_input)
+        print(cate[0])
+        tf.print("Embedding output (cate):", cate)
+        tf.print("Embedding output shape (cate):", cate.shape)
+    
+        flattened_cate = Flatten()(cate) # -> (None, 8)
+        tf.print("Flattened cate:", flattened_cate)
+        tf.print("Flattened cate shape:", flattened_cate.shape)
+
+        combined = Concatenate()([flattened_cate, numeric_input])# -> (None, 8 + 6 = 14)
+        tf.print("Combined input:", combined)
+        tf.print("Combined input shape:", combined.shape)
+       
+        x = Dense(units=self.h_dim, kernel_initializer="uniform", activation=self.act, name="hidden_layer")(combined)
+
+        print(x.shape)
+
+        outputs = Dense(
+            units=len(self.unique_label),
+            kernel_initializer="uniform",
+            activation="softmax",
+            name="last_layer",
+            bias_initializer=output_bias,
+        )(x)
+
+        print(outputs.shape)
+        # exit()
+        return Model(inputs=[categorical_input, numeric_input], outputs=outputs)
+    
+    
+    def initialize(self, input_cate_dim: int, input_num_dim: int,  y: np.ndarray = None):
+        self.logger.info(f"MLP input_dim: {input_cate_dim+input_num_dim}")
+
+        self.unique_label, self.label_frec = np.unique(y, return_counts=True)
+        output_bias = self.init_bias()
+        self.model = self.make_model(input_cate_dim, input_num_dim, output_bias if self.use_output_bias else None)
+        if self.optimizer == "adam":
+            optimizer = Adam(learning_rate=self.lr)
+        elif self.optimizer == "adamw":
+            optimizer = AdamW(learning_rate=self.lr, weight_decay=self.weight_decay)
+        elif self.optimizer == "sgd":
+            optimizer = SGD(learning_rate=self.lr, momentum=self.momentum, weight_decay=self.weight_decay)
+        self.model.compile(
+            # optimizer = 'rmsprop',
+            optimizer=optimizer,
+            loss="binary_crossentropy" if len(self.unique_label) == 2 else "categorical_crossentropy",
+            metrics=["accuracy"],
+        )
+
+    def cate_transform(self, X: pd.DataFrame):
+        _x = X.copy().reset_index(drop=True)
+
+        fit_columns = list(self.cate_ordinaler.feature_names_in_)
+        dropped_cols = [col for col in fit_columns if col not in X.columns]
+        fit_dropped_columns = [col for col in fit_columns if col not in dropped_cols]
+        self.cardinalities = [len(self.categories[col]) for col in fit_dropped_columns]
+    
+        if len(dropped_cols) > 0:
+            dummy_x = pd.DataFrame(np.zeros((_x.shape[0], len(dropped_cols))), columns=dropped_cols)
+            _x = pd.concat([_x, dummy_x], axis=1)
+        _x = self.cate_ordinaler.transform(_x[fit_columns])
+        return _x
+
+    def scaler_transform(self, X: pd.DataFrame) -> np.ndarray:
+        X_cate, X_cont = self.split_data(X)
+        X = []
+        if not X_cate.empty:
+            if not hasattr(self.cate_ordinaler, "feature_names_in_"):
+                self.cate_ordinaler.fit(X_cate)
+                self.categories = {k: list(v) for k, v in zip(X_cate.columns, self.cate_ordinaler.categories_)}
+            X.append(self.cate_transform(X_cate).astype(np.int32))
+        if not X_cont.empty:
+            if not hasattr(self.cont_scaler, "feature_names_in_"):
+                self.cont_scaler.fit(X_cont)
+            X.append(self.cont_transform(X_cont).astype(np.float32))
+
+        return X
+    
+    def fit(self, X: pd.DataFrame, y: np.ndarray, eval_set: Optional[Tuple[pd.DataFrame, np.ndarray]] = None) -> None:
+        X = self.scaler_transform(X)
+        
+        self.initialize(X[0].shape[1], X[1].shape[1], y)
+
+        y = self.change_target_shape(y)
+
+        callbacks = []
+        if eval_set is not None:
+            y_val = self.change_target_shape(eval_set[1])
+            eval_set = (self.scaler_transform(eval_set[0]), y_val)
+            if self.early_stopping is not None:
+                callbacks.append(self.early_stopping)
+
+        batch_size = self.batch_size
+        if batch_size == "auto":
+            batch_size = 2 ** int(np.log(X[0].shape[0]))
+            self.logger.info(f"Batch size: {batch_size}")
+  
+        self.model.fit(
+            x=X,
+            y=y,
+            validation_data=eval_set,
+            batch_size=batch_size,
+            epochs=self.epochs,
+            verbose=0,
+            shuffle=True,
+            callbacks=callbacks,
+        )
+
+    def pruning(self, ratio: float):
+        weights = self.get_weights()
+        weight_i2h = weights[2]
+        print({"weights": weight_i2h.shape})
+        print(weight_i2h)
+
+        weight_i2h = weight_i2h.flatten()
+        weight_i2h = list(map(abs, weight_i2h))
+        
+        weight_i2h_index = np.argsort(weight_i2h)
+        print(weight_i2h_index)
+
+        for i in range(int(len(weight_i2h_index) * ratio)):
+            change_zero = weight_i2h_index[i]
+            print({"num" : i },{ change_zero})
+            a = change_zero // self.h_dim
+            b = change_zero % self.h_dim
+            weights[2][a, b] = 0
+
+        print(weights[2])
+       
+        self.set_weights(weights)

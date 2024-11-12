@@ -81,6 +81,8 @@ class OpenMLDataFrame(object):
         self.continuous_columns = [x for i, x in enumerate(columns) if cate_indicator[i] == False and x != self.target_column]
         self.categorical_columns = [x for x in columns if x not in self.continuous_columns and x != self.target_column]
         self.feature_columns = self.continuous_columns + self.categorical_columns
+        self.data[self.continuous_columns] = self.data[self.continuous_columns].astype(float)
+        self.data[self.categorical_columns] = self.data[self.categorical_columns].astype(int)
         self.data = self.data.dropna(axis=0)
 
 

@@ -1,2 +1,2 @@
-from .base import MLP, BaseModel
-from .tokenizer import BaseTokenizer,CategoricalFeatureTokenizer
+from .base import MLP, BaseModel,TokenizedMLP
+from .tokenizer import BaseTokenizer,CategoricalFeatureTokenizer,FeatureTokenizer

@@ -15,7 +15,7 @@ from sklearn.utils.estimator_checks import check_estimator
 from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.validation import check_is_fitted
 
-from .base_model import BaseModel
+from .base_model import BaseModel,TokenizedMLP,MLP
 from .rule import Rule, RuleExtractorFactory, RuleSet
 from .tree import BaseTree
 from .utils import Logger
@@ -71,17 +71,17 @@ class ReRx(BaseEstimator, ClassifierMixin):
         original_score = self.base_model.get_current_score(X, y)
         original_weight = self.base_model.get_weights()
 
-        previous_weight = None
+        previous_weight = None      #前回のpruning結果を保存するための変数
         for ratio in np.arange(0, 1.0, self.pruning_step):
-            self.base_model.set_weights(original_weight)
+            self.base_model.set_weights(original_weight)    #重みをリセット
 
-            self.base_model.pruning(ratio)
+            self.base_model.pruning(ratio)  
 
-            pos_score = self.base_model.get_current_score(X, y)
+            pos_score = self.base_model.get_current_score(X, y) #pruning後のモデルスコア評価
             if self._stop_pruning(original_score, pos_score):
                 self.logger("pruning_rate is : " + str(ratio))
                 break
-            previous_weight = self.base_model.get_weights()
+            previous_weight = self.base_model.get_weights()     #pruning後のモデルスコア取得
 
         if ratio + self.pruning_step == 1.0:
             self.logger("Warning: pruning threshold is too high. The model may not perform properly.")
