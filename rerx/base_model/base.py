@@ -371,7 +371,7 @@ class TokenizedMLP(MLP):
 
         x = Concatenate()([flattened_cate, numeric_input])
 
-        x = Dense(units=self.h_dim, kernel_initializer="uniform", activation=self.act, name="hidden_layer")(flattened_cate)
+        x = Dense(units=self.h_dim, kernel_initializer="uniform", activation=self.act, name="hidden_layer")(x)
 
         outputs = Dense(
             units=len(self.unique_label),
@@ -465,55 +465,21 @@ class TokenizedMLP(MLP):
             shuffle=True,
             callbacks=callbacks,
         )
+    
+    def pruning(self, ratio: float):
+        weights = self.get_weights()
+        weight_i2h = weights[2]
+
+        weight_i2h = weight_i2h.flatten()
+        weight_i2h = list(map(abs, weight_i2h))
+
+        weight_i2h_index = np.argsort(weight_i2h)
+
+        for i in range(int(len(weight_i2h_index) * ratio)):
+            change_zero = weight_i2h_index[i]
+            a = change_zero // self.h_dim
+            b = change_zero % self.h_dim
+            weights[2][a, b] = 0
+
+        self.set_weights(weights)
         
-
-    # def scaler_transform(self, X: pd.DataFrame) -> np.ndarray:
-    #     X_cate, X_cont = self.split_data(X)
-    #     X = []
-    #     if not X_cate.empty:
-    #         if not hasattr(self.cate_onehoter, "feature_names_in_"):
-    #             self.cate_onehoter.fit(X_cate)
-    #             self.categories = {k: list(v) for k, v in zip(X_cate.columns, self.cate_onehoter.categories_)}
-    #         X.append(self.cate_transform(X_cate))
-    #     if not X_cont.empty:
-    #         if not hasattr(self.cont_scaler, "feature_names_in_"):
-    #             self.cont_scaler.fit(X_cont)
-    #         X.append(self.cont_transform(X_cont))
-    #     X = np.concatenate(X, axis=1)
-    #     return X
-
-
-
-
-
-
-    # def cate_transform(self, X: pd.DataFrame):
-    #     _x = X.copy().reset_index(drop=True)
-    #     print(_x)
-    #     exit()
-    #     fit_columns = list(self.cate_onehoter.feature_names_in_)
-
-        
-    #     dropped_cols = [col for col in fit_columns if col not in X.columns]
-    #     fit_dropped_columns = [col for col in fit_columns if col not in dropped_cols]
-
-    #     cardinalities = [len(self.categories[col]) for col in fit_dropped_columns]
-    #     cate_tokenizer = CategoricalFeatureTokenizer(cardinalities=cardinalities, d_token=self.d_token, bias=self.bias, initialization=self.initialization)
-    #     input = self.generate_custom_matrix(cardinalities)
-    #     tokens = cate_tokenizer(input)
-    #     print(tokens)
-    #     # exit()
-    #     # for i in len(fit_dropped_columns):
-    #     #     for j in range(cardinalities[i]):
-
-    #     #     _x[]
-    #     # onehot_columns = [f"{col}_{value}" for col in X.columns for value in self.categories[col]]
-    #     # fit_onehot_columns = sum(
-    #     #     [[f"{col}_{value}" for value in category] for col, category in self.categories.items()], []
-    #     # )
-    #     # x_idx = [fit_onehot_columns.index(col) for col in onehot_columns]
-    #     # if len(dropped_cols) > 0:
-    #     #     dummy_x = pd.DataFrame(np.zeros((_x.shape[0], len(dropped_cols))), columns=dropped_cols)
-    #     #     _x = pd.concat([_x, dummy_x], axis=1)
-    #     # _x = self.cate_onehoter.transform(_x[fit_columns])[:, x_idx]
-    #     return tokens
