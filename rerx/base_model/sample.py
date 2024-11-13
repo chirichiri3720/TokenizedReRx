@@ -3,8 +3,8 @@ import tensorflow as tf
 from tokenizer import CategoricalFeatureTokenizer
 
 # テスト用のデータ
-cardinalities = [3,2]  # カテゴリカル特徴の種類数
-d_token = 3  # 各トークンの次元数
+cardinalities = [2, 3, 14, 8, 2, 2, 2, 3]  # カテゴリカル特徴の種類数
+d_token = 1  # 各トークンの次元数
 bias = True  # バイアスを使用する
 initialization = 'uniform'  # パラメータの初期化方法
 
@@ -14,11 +14,20 @@ tokenizer = CategoricalFeatureTokenizer(cardinalities=cardinalities, d_token=d_t
 # テスト用の入力データを作成
 # 各特徴量が取る値はその特徴のカテゴリ数未満でなければなりません
 x_test = tf.constant([
-    [0, 0],
-    [0, 1],
-    [1, 0],
-    [1, 1]
-])
+[0,0,0,0,0,0,0,0],
+ [1,  1 , 1 , 1,  1,  1 , 1 , 1],
+ [1,  2,  2,  2,  1,  1,  1,  2],
+ [1,  2,  3,  3,  1,  1,  1,  2],
+ [1,  2,  4,  4,  1,  1,  1,  2],
+ [1,  2,  5,  5,  1,  1,  1,  2],
+ [1,  2,  6,  6,  1,  1,  1,  2],
+ [1,  2,  7,  7,  1,  1,  1,  2],
+ [1,  2,  8,  7,  1,  1,  1,  2],
+ [1,  2,  9,  7,  1,  1,  1,  2],
+ [1,  2, 10,  7,  1,  1,  1,  2],
+ [1,  2, 11,  7,  1,  1,  1,  2],
+ [1,  2, 12,  7,  1,  1,  1,  2],
+ [1,  2, 13,  7,  1,  1,  1,  2]])
 
 print(x_test + tokenizer.category_offsets[None])
 # トークナイザーを適用して出力トークンを取得
