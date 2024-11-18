@@ -448,12 +448,6 @@ class TokenizedMLP(MLP):
         if batch_size == "auto":
             batch_size = 2 ** int(np.log(X[0].shape[0]))
             self.logger.info(f"Batch size: {batch_size}")
-        cate = CategoricalFeatureTokenizer(
-            cardinalities=self.cardinalities,
-            d_token=self.d_token,
-            bias=self.bias,
-            initialization=self.initialization,
-            ) 
 
         self.model.fit(
             x=X,
@@ -508,5 +502,4 @@ class TokenizedMLP(MLP):
                     drop_columns.append(column)
 
         return drop_columns
-    
     
