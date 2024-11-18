@@ -476,6 +476,32 @@ class TokenizedMLP(MLP):
             weights[2][a, b] = 0
 
         self.set_weights(weights)
+
+    def get_droped_columns(self, X: pd.DataFrame):
+        X_cate, X_cont = self.split_data(X)
+        drop_columns = []
+        weights = self.get_weights()
+        weight_i2h = weights[2]
+
+        if not X_cate.empty:
+            cate_name_ordinal = [f"{col}_{value}" for col in X_cate.columns for value in self.categories[col]]
+            categories = {k: self.categories[k] for k in X_cate.columns}
+
+            cate_drop_columns = []
+            for column, attribute in zip(cate_name_ordinal, weight_i2h[:, : len(cate_name_ordinal)]):
+                if np.all(attribute == 0):
+                    cate_drop_columns.append(column)
+
+            for column, category in categories.items():
+                if all([f"{column}_{value}" in cate_drop_columns for value in category]):
+                    drop_columns.append(column)
+
+        if not X_cont.empty:
+            for column, attribute in zip(X_cont.columns, weight_i2h[:, -len(X_cont.columns) :]):
+                if np.all(attribute == 0):
+                    drop_columns.append(column)
+
+        return drop_columns
         
     def get_droped_columns(self, X: pd.DataFrame):
         X_cate, X_cont = self.split_data(X)
